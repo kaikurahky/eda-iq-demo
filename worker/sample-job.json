@@ -1,0 +1,7 @@
+{
+  "runId": "RUN-0101",
+  "maskBiasNm": 1.4,
+  "fragmentLimit": 240,
+  "smoothing": 0.62,
+  "serifStrength": 0.72
+}
