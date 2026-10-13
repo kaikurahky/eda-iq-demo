@@ -5,7 +5,7 @@
     "location": { "value": "japaneast" },
     "environmentName": { "value": "demo" },
     "foundryLocation": { "value": "japaneast" },
-    "vmSize": { "value": "Standard_B2s" },
+    "vmSize": { "value": "Standard_B2als_v2" },
     "adminSshPublicKey": { "value": "GENERATED_BY_DEPLOY_SCRIPT" }
   }
 }

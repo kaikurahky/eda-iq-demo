@@ -4,21 +4,37 @@ set -euo pipefail
 resource_group="${RESOURCE_GROUP:-rg-eda-opc-iq-demo}"
 location="${LOCATION:-japaneast}"
 foundry_location="${FOUNDRY_LOCATION:-japaneast}"
-tenant_id="${AZURE_TENANT_ID:-16b3c013-d300-468d-ac64-7eda0820b6d3}"
-subscription_id="${AZURE_SUBSCRIPTION_ID:-bd90ba39-1b34-4281-8578-8419b4092104}"
+vm_size="${VM_SIZE:-Standard_B2als_v2}"
+tenant_id="${AZURE_TENANT_ID:-df5c178b-9ee5-4702-8227-beaccee0a317}"
+subscription_id="${AZURE_SUBSCRIPTION_ID:-02822f3b-51ae-46e7-b446-9d74b942e87c}"
 deployment_name="eda-iq-demo-$(date -u +%Y%m%d%H%M%S)"
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ssh_key="$(mktemp)"
-trap 'rm -f "$ssh_key" "$ssh_key.pub"' EXIT
+temp_dir="$(mktemp -d)"
+ssh_key="$temp_dir/id_ed25519"
+trap 'rm -f "$ssh_key" "$ssh_key.pub"; rmdir "$temp_dir" 2>/dev/null || true' EXIT
 
 command -v az >/dev/null
 command -v docker >/dev/null
+if [[ ! "$vm_size" =~ ^Standard_[A-Za-z0-9_]+$ ]]; then
+  printf 'Invalid VM_SIZE: %s\n' "$vm_size" >&2
+  exit 1
+fi
 current_tenant="$(az account show --query tenantId --output tsv)"
 if [[ "$current_tenant" != "$tenant_id" ]]; then
   printf 'Azure CLI is signed into tenant %s, expected %s. Run: az login --tenant %s\n' "$current_tenant" "$tenant_id" "$tenant_id" >&2
   exit 1
 fi
 az account set --subscription "$subscription_id"
+sku_name="$(az vm list-skus --location "$location" --resource-type virtualMachines --size "$vm_size" --all --query "[?name=='${vm_size}'].name | [0]" --output tsv)"
+location_restriction_count="$(az vm list-skus --location "$location" --resource-type virtualMachines --size "$vm_size" --all --query "[?name=='${vm_size}'] | [0].restrictions[?type=='Location'] | length(@)" --output tsv)"
+if [[ -z "$sku_name" ]]; then
+  printf 'VM SKU %s was not found in %s. Set VM_SIZE to an available SKU.\n' "$vm_size" "$location" >&2
+  exit 1
+fi
+if (( location_restriction_count > 0 )); then
+  printf 'VM SKU %s is restricted for this subscription in %s. Set VM_SIZE to an available SKU.\n' "$vm_size" "$location" >&2
+  exit 1
+fi
 ssh-keygen -q -t ed25519 -N '' -f "$ssh_key"
 
 az group create --name "$resource_group" --location "$location" --output none
@@ -31,18 +47,18 @@ fi
 az deployment group validate \
   --resource-group "$resource_group" \
   --template-file "$project_root/infra/main.bicep" \
-  --parameters "$project_root/infra/main.parameters.json" location="$location" foundryLocation="$foundry_location" adminSshPublicKey="$(<"$ssh_key.pub")" configureWorkerBootstrap="$configure_worker_bootstrap" \
+  --parameters "$project_root/infra/main.parameters.json" location="$location" foundryLocation="$foundry_location" vmSize="$vm_size" adminSshPublicKey="$(<"$ssh_key.pub")" configureWorkerBootstrap="$configure_worker_bootstrap" \
   --output none
 az deployment group what-if \
   --resource-group "$resource_group" \
   --template-file "$project_root/infra/main.bicep" \
-  --parameters "$project_root/infra/main.parameters.json" location="$location" foundryLocation="$foundry_location" adminSshPublicKey="$(<"$ssh_key.pub")" configureWorkerBootstrap="$configure_worker_bootstrap" \
+  --parameters "$project_root/infra/main.parameters.json" location="$location" foundryLocation="$foundry_location" vmSize="$vm_size" adminSshPublicKey="$(<"$ssh_key.pub")" configureWorkerBootstrap="$configure_worker_bootstrap" \
   --result-format ResourceIdOnly
 az deployment group create \
   --name "$deployment_name" \
   --resource-group "$resource_group" \
   --template-file "$project_root/infra/main.bicep" \
-  --parameters "$project_root/infra/main.parameters.json" location="$location" foundryLocation="$foundry_location" adminSshPublicKey="$(<"$ssh_key.pub")" configureWorkerBootstrap="$configure_worker_bootstrap" \
+  --parameters "$project_root/infra/main.parameters.json" location="$location" foundryLocation="$foundry_location" vmSize="$vm_size" adminSshPublicKey="$(<"$ssh_key.pub")" configureWorkerBootstrap="$configure_worker_bootstrap" \
   --output none
 
 output_query="properties.outputs.deployment.value"

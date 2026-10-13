@@ -47,7 +47,7 @@ Build a reusable Azure demo that emulates Synopsys Proteus OPC recipe optimizati
 
 ### Compute Plane
 
-- One small Ubuntu Linux VM, initially `Standard_B2s` subject to target-subscription availability, with system-assigned managed identity and no public inbound SSH.
+- One small Ubuntu Linux VM, initially `Standard_B2als_v2` subject to target-subscription availability, with system-assigned managed identity and no public inbound SSH.
 - Worker service polls the queue using managed identity, downloads a signed synthetic job specification, runs the mock OPC simulator, uploads JSON/CSV/PNG artifacts, and updates status.
 - Production evolution: replace the VM worker with CycleCloud Slurm or an existing on-premises Slurm cluster through a private EDA gateway. The job contract remains unchanged.
 
@@ -121,7 +121,7 @@ Validated on 2026-07-24 against subscription `bd90ba39-1b34-4281-8578-8419b40921
 | --- | --- | --- |
 | Target identity and authorization | Windows Azure CLI WAM `az account show`; subscription role check | Passed: target tenant/subscription, account `hikurais@microsoft.com`, Owner |
 | Resource providers | `az provider show` and `az provider register --namespace Microsoft.App --wait` | Passed: all required providers registered, including `Microsoft.App` |
-| VM SKU and quota | Japan East `Standard_B2s` SKU restriction and Standard BS family usage checks | Passed: SKU unrestricted; 0 of 100 vCPUs used |
+| VM SKU and quota | Japan East `Standard_B2als_v2` SKU restriction and Standard Basv2 family usage checks | Passed: SKU unrestricted at validation time |
 | Azure Policy | Subscription and resource-group policy assignment review | Passed: no assignment found that blocks the planned resource types |
 | Application quality | `npm run check` | Passed: lint, tests, and production build |
 | Worker contract | `python -m unittest discover -s worker/tests -v` | Passed: 2 of 2 tests |

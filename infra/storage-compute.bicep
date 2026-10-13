@@ -11,7 +11,7 @@ param tags object
 param appIdentityPrincipalId string
 
 @description('Small demo VM SKU. Validate availability before deployment.')
-param vmSize string = 'Standard_B2s'
+param vmSize string = 'Standard_B2als_v2'
 
 @description('Linux VM administrator user name.')
 param adminUsername string = 'azureopc'
